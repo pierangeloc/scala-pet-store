@@ -6,8 +6,8 @@ import io.circe.generic.auto._
 import io.circe.generic.extras.semiauto._
 import io.circe.syntax._
 import io.github.pauljamescleary.petstore.model.{Pet, Status}
-import io.github.pauljamescleary.petstore.service.PetService
-import io.github.pauljamescleary.petstore.validation.{PetAlreadyExistsError, PetNotFoundError}
+import io.github.pauljamescleary.petstore.taglessfinal.service.PetService
+import io.github.pauljamescleary.petstore.taglessfinal.validation.{PetAlreadyExistsError, PetNotFoundError}
 import org.http4s.circe._
 import org.http4s.dsl._
 import org.http4s.{HttpService, QueryParamDecoder}

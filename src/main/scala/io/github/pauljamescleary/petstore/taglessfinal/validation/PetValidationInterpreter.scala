@@ -1,8 +1,8 @@
-package io.github.pauljamescleary.petstore.validation
+package io.github.pauljamescleary.petstore.taglessfinal.validation
 
 import cats.effect.IO
 import io.github.pauljamescleary.petstore.model.Pet
-import io.github.pauljamescleary.petstore.repository.PetRepositoryAlgebra
+import io.github.pauljamescleary.petstore.taglessfinal.repository.PetRepositoryAlgebra
 
 class PetValidationInterpreter(implicit repository: PetRepositoryAlgebra[IO]) extends PetValidationAlgebra[IO] {
   import cats.syntax.monadError._

@@ -6,7 +6,7 @@ import io.circe.syntax._
 import io.circe.generic.auto._
 import io.circe.generic.extras.semiauto._
 import io.github.pauljamescleary.petstore.model.{Order, OrderStatus}
-import io.github.pauljamescleary.petstore.service.OrderService
+import io.github.pauljamescleary.petstore.taglessfinal.service.OrderService
 import org.http4s.HttpService
 import org.http4s.circe._
 import org.http4s.dsl._

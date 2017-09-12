@@ -1,4 +1,4 @@
-package io.github.pauljamescleary.petstore.repository
+package io.github.pauljamescleary.petstore.taglessfinal.repository
 
 import io.github.pauljamescleary.petstore.model.Pet
 

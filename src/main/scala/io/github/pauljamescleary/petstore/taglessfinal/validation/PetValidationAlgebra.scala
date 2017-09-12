@@ -1,4 +1,4 @@
-package io.github.pauljamescleary.petstore.validation
+package io.github.pauljamescleary.petstore.taglessfinal.validation
 
 import io.github.pauljamescleary.petstore.model.Pet
 

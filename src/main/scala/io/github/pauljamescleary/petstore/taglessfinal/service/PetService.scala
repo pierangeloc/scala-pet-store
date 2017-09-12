@@ -1,9 +1,9 @@
-package io.github.pauljamescleary.petstore.service
+package io.github.pauljamescleary.petstore.taglessfinal.service
 
 import cats.{Monad, MonadError}
 import io.github.pauljamescleary.petstore.model.Pet
-import io.github.pauljamescleary.petstore.repository.PetRepositoryAlgebra
-import io.github.pauljamescleary.petstore.validation.{PetNotFoundError, PetValidationAlgebra}
+import io.github.pauljamescleary.petstore.taglessfinal.repository.PetRepositoryAlgebra
+import io.github.pauljamescleary.petstore.taglessfinal.validation.{PetNotFoundError, PetValidationAlgebra}
 
 import scala.language.higherKinds
 

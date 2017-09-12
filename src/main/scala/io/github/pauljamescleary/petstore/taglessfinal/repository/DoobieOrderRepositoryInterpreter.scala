@@ -1,4 +1,4 @@
-package io.github.pauljamescleary.petstore.repository
+package io.github.pauljamescleary.petstore.taglessfinal.repository
 
 import doobie._
 import doobie.implicits._
