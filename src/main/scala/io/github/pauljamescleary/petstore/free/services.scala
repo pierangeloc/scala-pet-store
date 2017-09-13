@@ -1,25 +1,26 @@
 package io.github.pauljamescleary.petstore.free
 
-import cats.InjectK
+import cats.{InjectK, ~>}
 import cats.data.EitherK
+import cats.effect.IO
 import cats.free.Free
-import io.github.pauljamescleary.petstore.free.OrderRepositoryAlgebra.{Delete, Get, OrderRepositoryAlgebraF, Put}
-import io.github.pauljamescleary.petstore.free.PetRepositoryAlgebra.{Delete, FindByNameAndCategory, Get, List, PetRepositoryAlgebraF, Put}
+import io.github.pauljamescleary.petstore.free.OrderRepositoryAlgebra.OrderRepositoryAlgebraF
+import io.github.pauljamescleary.petstore.free.PetRepositoryAlgebra.PetRepositoryAlgebraF
 import io.github.pauljamescleary.petstore.free.PetValidationAlgebra.{DoesNotExist, PetValidationAlgebraF}
 import io.github.pauljamescleary.petstore.model.{Order, Pet}
 
+import scala.collection.concurrent.TrieMap
+import scala.util.Random
+
 
 object services {
-
-  type Repositories[A] = EitherK[PetRepositoryAlgebraF, OrderRepositoryAlgebraF, A]
-  type App[A] = EitherK[PetValidationAlgebraF, Repositories, A]
-
   /**
-    * Implicit parameter provides a way to say how the `PetRepositoryAlgebraF` can be derived from the `F`
-    * @param P
-    * @tparam F
+    * Implicit parameter provides a way to say how the `PetRepositoryAlgebraF` can be seen inside a `F`.
+    * E.g. a type R can always be seen inside an Either[L, R]. In this case R is a kind
     */
   class PetRepository[F[_]](implicit P: InjectK[PetRepositoryAlgebraF, F]) {
+    import PetRepositoryAlgebra._
+
     type PetRepo[A] = Free[F, A]
 
     /**
@@ -44,6 +45,8 @@ object services {
   }
 
   class OrderRepository[F[_]](implicit O: InjectK[OrderRepositoryAlgebraF, F]) {
+    import OrderRepositoryAlgebra._
+
     type OrderRepo[A] = Free[F, A]
 
     val liftF = Free.inject[OrderRepositoryAlgebraF, F]
@@ -73,8 +76,11 @@ object services {
     implicit def petValidation[F[_]](implicit V: InjectK[PetValidationAlgebraF, F]) = new PetValidation[F]()
   }
 
-  class PetService(implicit P: PetRepository[App], O: OrderRepository[App], V: PetValidation[App]) {
-    type R[A] = Free[App, A]
+  type Repositories[A] = EitherK[PetRepositoryAlgebraF, OrderRepositoryAlgebraF, A]
+  type PetApp[A] = EitherK[PetValidationAlgebraF, Repositories, A]
+
+  class PetService(implicit P: PetRepository[PetApp], O: OrderRepository[PetApp], V: PetValidation[PetApp]) {
+    type R[A] = Free[PetApp, A]
 
 
     def create(pet: Pet): R[Pet] = {
@@ -95,6 +101,63 @@ object services {
     def delete(id: Long): R[Unit] = P.delete(id).map(_ => ())
 
     def list(pageSize: Int, offset: Int): R[Seq[Pet]] = P.list(pageSize, offset)
+  }
+
+  object IOInMemoryInterpreters {
+
+    object InMemoryPetRepositoryInterpreter extends (PetRepositoryAlgebraF ~> IO) {
+      import PetRepositoryAlgebra._
+      private val cache = new TrieMap[Long, Pet]
+      private val random = new Random
+
+      override def apply[A](fa: PetRepositoryAlgebraF[A]): IO[A] = fa match {
+        case Put(pet) => IO.pure {
+          val toBeInserted = pet.copy(id = pet.id.orElse(Some(random.nextLong)))
+          toBeInserted.id.foreach{ cache.put(_, toBeInserted) }
+          toBeInserted
+        }
+        case Get(id) => IO.pure { cache.get(id) }
+        case Delete(id) => IO.pure { cache.remove(id) }
+        case FindByNameAndCategory(name, category) => IO.pure {
+          cache.values.filter{ p => p.name == name && p.category == category}.toSet
+        }
+        case List(pageSize, offset) => IO.pure {
+          cache.values.toSeq.slice(offset, offset + pageSize)
+        }
+      }
+    }
+
+    object InMemoryOrderRepositoryInterpreter extends (OrderRepositoryAlgebraF ~> IO) {
+      import OrderRepositoryAlgebra._
+
+      private val cache = new TrieMap[Long, Order]
+      private val random = new Random
+
+      override def apply[A](fa: OrderRepositoryAlgebraF[A]): IO[A] = fa match {
+        case Put(order) => IO.pure {
+          val toBeInserted = order.copy(id = order.id.orElse(Some(random.nextLong)))
+          toBeInserted.id.foreach{ cache.put(_, toBeInserted) }
+          toBeInserted
+        }
+        case Get(orderId) => IO.pure { cache.get(orderId) }
+        case Delete(orderId) => IO.pure { cache.remove(orderId) }
+      }
+    }
+
+    object PetValidationInterpreter extends (PetValidationAlgebraF ~> IO) {
+      import PetValidationAlgebra._
+
+      override def apply[A](fa: PetValidationAlgebraF[A]): IO[A] = fa match {
+        case DoesNotExist(pet: Pet) => IO.pure(())
+      }
+    }
+
+    val repositoriesInterpreter: Repositories ~> IO = InMemoryPetRepositoryInterpreter or InMemoryOrderRepositoryInterpreter
+    val interpreter: PetApp ~> IO = PetValidationInterpreter or repositoriesInterpreter
+
+    val runnablePetService = new PetService() {
+      def run[A](program: R[A]): IO[A] = program.foldMap(interpreter)
+    }
   }
 
 }
